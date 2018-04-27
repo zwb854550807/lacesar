@@ -1,1 +1,103 @@
-11111
+#*订单查询接口*#
+##开始时间
+#set($beginTime=$i.value("beginTime"))
+#set($endTime=$i.value("endTime"))
+#set($orderID=$i.value("orderID"))
+#set($orderWay=$i.value("orderWay"))
+#set($payWay=$i.value("payWay"))
+#set($offset=$i.value("offset"))
+#set($limit=$i.value("limit"))
+
+$response.setHeader('Content-Type','application/json')
+
+#set($returnData = {})
+#set($returnData.errcode =500)
+#set($returnData.errmsg = "")
+#set($returnData.orders =[])
+
+#set($tempReData = {})
+#set($tempReData.resultOrder ="")
+##debug
+#if("$!offset"=="")
+   #set($returnData.errmsg="查询范围不能为空！")
+   #set($returnData.errcode =500)
+   $i.util.printJson($returnData)
+    #stop
+ #end
+
+      #if("$!limit"=="")
+       #set($returnData.errmsg="查询范围不能为空！")
+       #set($returnData.errcode =500)
+       $i.util.printJson($returnData)    
+        #stop
+      #end
+##查询数据
+#set($cy_order_sql="select * from cy_order where 1=1")
+
+##订单id
+#if("$!orderID"!="")
+  #set($cy_order_sql=$cy_order_sql+' and orderid="$!orderID" ')
+  #set($returnData.orders=$i.ndb.select($cy_order_sql))
+  #set($returnData.errcode="0")
+  $i.util.printJson($returnData)
+  #stop
+#end
+
+#if("$!orderWay"!="")
+    #set($cy_order_sql=$cy_order_sql+" and order_way =" +$orderWay)
+#end 
+
+#if("$!payWay"!="")
+    #set($cy_order_sql=$cy_order_sql+" and pay_way =" +$payWay)
+#end 
+
+##格式化时间
+#if("$!beginTime"!="" && "$!endTime"!="")
+  #set($cy_order_sql=$cy_order_sql + " and create_time  >= '$!beginTime' ")
+  #set($cy_order_sql=$cy_order_sql + " and create_time <= '$!endTime' ")
+  #set($tempReData.temp=$cy_order_sql)
+#end
+
+##查询范围
+#if("$!offset"!="" && "$!limit"!="")
+    #set($cy_order_sql=$cy_order_sql+" limit " +$offset+","+$!limit)
+#end
+
+#set($tempReData.resultOrder =$i.ndb.select($cy_order_sql))
+
+#if("$!tempReData.resultOrder"=="")
+  #set($returnData.errcode="500")
+  #set($returnData.errmsg="查询的数据为空！")
+#end
+
+#if("$!tempReData.resultOrder"!="")
+  #foreach($itemOrder in $tempReData.resultOrder)
+    #set($newOrder={})
+   #set($newOrder.orderID=$itemOrder.orderid)
+    #set($newOrder.storeID=$itemOrder.shopid)
+    #set($newOrder.storeName=$itemOrder.shop_name)
+    #set($newOrder.storeCode=$itemOrder.shop_orderid)
+    #set($newOrder.caution=$itemOrder.buyer_remark)
+    #set($newOrder.customer={})
+      #set($newOrder.customer.tableNo=$itemOrder.delivery_building)
+      #set($newOrder.customer.persons=$itemOrder.persons)
+    #set($newOrder.orderWay=$itemOrder.order_way)
+    #if($newOrder.orderWay =="2")
+      #set($newOrder.orderWay="canteen")
+    #end
+    #set($newOrder.payWay=$itemOrder.pay_way)
+    #if($newOrder.payWay =="0")
+      #set($newOrder.payWay="COD")
+    #end
+    #set($newOrder.orderState=$itemOrder.order_status)
+    #set($newOrder.payAmount=$i.getDouble($itemOrder.total_fee)-$i.getDouble($itemOrder.discount))
+    #set($resFlag={})
+    #set($resFlag=$returnData.orders.add($i.util.getJsonObject($newOrder)))
+  #end
+  #set($returnData.errcode="0")
+#end
+$i.util.printJson($returnData)
+
+
+
+
